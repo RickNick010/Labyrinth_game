@@ -1,0 +1,24 @@
+{ "columns":4,
+ "image":"Fences.png",
+ "imageheight":64,
+ "imagewidth":64,
+ "margin":0,
+ "name":"Fences",
+ "spacing":0,
+ "tilecount":16,
+ "tiledversion":"1.11.2",
+ "tileheight":16,
+ "tiles":[
+        {
+         "id":3,
+         "properties":[
+                {
+                 "name":"collidable",
+                 "type":"string",
+                 "value":"true"
+                }]
+        }],
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
+}
