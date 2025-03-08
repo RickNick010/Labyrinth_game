@@ -49,6 +49,9 @@ class TileMap:
         # Initialize collision map
         self.collision_map = [[False for _ in range(self.map_width)] for _ in range(self.map_height)]
         
+        # Collision objects from object layers
+        self.collision_objects = []
+        
         # Print map properties for debugging
         print(f"Map dimensions: {self.map_width}x{self.map_height}, Tile size: {self.tile_width}x{self.tile_height}")
         
@@ -60,6 +63,9 @@ class TileMap:
         # Process layers
         self.layers = self.map_data.get('layers', [])
         print(f"Loaded {len(self.layers)} layers")
+        
+        # Extract collision objects from object layers
+        self.load_collision_objects()
         
         # Identify collidable tiles
         self.identify_collidable_tiles()
@@ -123,11 +129,12 @@ class TileMap:
         
     def build_collision_map(self):
         """
-        Build a 2D collision map based on tile properties
+        Build a 2D collision map based on tile properties and collision objects
         """
         print("Building collision map...")
         collidable_count = 0
         
+        # First, add collidable tiles to the collision map
         for layer in self.layers:
             if layer['type'] == 'tilelayer' and layer.get('visible', True):
                 layer_name = layer.get('name', 'Unnamed Layer')
@@ -151,6 +158,21 @@ class TileMap:
                                 collidable_count += 1
                                 print(f"Added collidable tile at ({x}, {y}) with GID {gid}")
         
+        # Then, add collision objects to the collision map
+        for obj in self.collision_objects:
+            # Convert float coordinates to integers for the collision map
+            start_x = max(0, int(obj['x']))
+            start_y = max(0, int(obj['y']))
+            end_x = min(self.map_width, int(obj['x'] + obj['width']) + 1)
+            end_y = min(self.map_height, int(obj['y'] + obj['height']) + 1)
+            
+            # Mark all tiles covered by this object as collidable
+            for y in range(start_y, end_y):
+                for x in range(start_x, end_x):
+                    if 0 <= x < self.map_width and 0 <= y < self.map_height:
+                        self.collision_map[y][x] = True
+                        collidable_count += 1
+        
         print(f"Built collision map with {collidable_count} collidable tiles")
         
         # Debug: Print a small section of the collision map
@@ -170,18 +192,32 @@ class TileMap:
     
     def is_position_collidable(self, x, y):
         """
-        Check if a position in pixel coordinates is collidable
+        Check if a position is collidable
         """
         # Convert pixel coordinates to tile coordinates
         tile_x = int(x // self.tile_width)
         tile_y = int(y // self.tile_height)
         
-        # Check if the coordinates are within the map bounds
+        # Check if the tile is within the map bounds
         if 0 <= tile_x < self.map_width and 0 <= tile_y < self.map_height:
-            return self.collision_map[tile_y][tile_x]
+            # Check the collision map
+            if self.collision_map[tile_y][tile_x]:
+                return True
         
-        # Positions outside the map are considered collidable
-        return True
+        # Check collision with objects (for more precise collision)
+        for obj in self.collision_objects:
+            # Convert object coordinates to pixel coordinates
+            obj_x = obj['x'] * self.tile_width
+            obj_y = obj['y'] * self.tile_height
+            obj_width = obj['width'] * self.tile_width
+            obj_height = obj['height'] * self.tile_height
+            
+            # Check if the point is inside the object
+            if (obj_x <= x < obj_x + obj_width and 
+                obj_y <= y < obj_y + obj_height):
+                return True
+        
+        return False
     
     def resolve_tileset_path(self, source_path):
         """
@@ -346,8 +382,9 @@ class TileMap:
                                 # Draw the tile
                                 screen.blit(tile_image, (draw_x, draw_y))
         
-        # Debug rendering - show collision map
+        # Debug rendering
         if debug:
+            # Show collision map
             for y in range(start_y, end_y):
                 for x in range(start_x, end_x):
                     if 0 <= y < len(self.collision_map) and 0 <= x < len(self.collision_map[y]):
@@ -357,6 +394,18 @@ class TileMap:
                             draw_y = y * self.tile_height - camera_y
                             pygame.draw.rect(screen, (255, 0, 0, 128), 
                                             (draw_x, draw_y, self.tile_width, self.tile_height), 1)
+            
+            # Show collision objects
+            for obj in self.collision_objects:
+                # Convert object coordinates to pixel coordinates
+                obj_x = obj['x'] * self.tile_width - camera_x
+                obj_y = obj['y'] * self.tile_height - camera_y
+                obj_width = obj['width'] * self.tile_width
+                obj_height = obj['height'] * self.tile_height
+                
+                # Draw a blue rectangle for collision objects
+                pygame.draw.rect(screen, (0, 0, 255), 
+                                (obj_x, obj_y, obj_width, obj_height), 2)
 
     def debug_find_tile_in_map(self, target_gid):
         """
@@ -378,3 +427,33 @@ class TileMap:
                             found_count += 1
         
         print(f"Found {found_count} instances of GID {target_gid}")
+
+    def load_collision_objects(self):
+        """
+        Load collision objects from object layers in the map
+        """
+        print("Loading collision objects...")
+        
+        for layer in self.layers:
+            if layer['type'] == 'objectgroup' and 'collision' in layer['name'].lower():
+                print(f"Found collision layer: {layer['name']}")
+                
+                for obj in layer.get('objects', []):
+                    # Convert object coordinates to tile coordinates
+                    x = obj.get('x', 0) / self.tile_width
+                    y = obj.get('y', 0) / self.tile_height
+                    width = obj.get('width', 0) / self.tile_width
+                    height = obj.get('height', 0) / self.tile_height
+                    
+                    # Create a collision rectangle
+                    collision_rect = {
+                        'x': x,
+                        'y': y,
+                        'width': width,
+                        'height': height
+                    }
+                    
+                    self.collision_objects.append(collision_rect)
+                    print(f"Added collision object at ({x}, {y}) with size ({width}, {height})")
+        
+        print(f"Loaded {len(self.collision_objects)} collision objects")

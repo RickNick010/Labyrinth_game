@@ -154,7 +154,7 @@ class Game:
                 self.map.render(self.render_surface, self.camera_x, self.camera_y, self.debug_mode)
                 
             # Draw player to the render surface
-            self.player.draw(self.render_surface, self.camera_x, self.camera_y)
+            self.player.draw(self.render_surface, self.camera_x, self.camera_y, self.debug_mode)
             
             # Scale the render surface up to the screen
             scaled_surface = pygame.transform.scale(self.render_surface, (self.screen_width, self.screen_height))

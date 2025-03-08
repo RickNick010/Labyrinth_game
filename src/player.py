@@ -18,6 +18,11 @@ class Player:
         self.height = tileset.get('tileheight', 16)
         self.speed = 2
         
+        # Collision box modifier - make the collision box smaller than the sprite
+        # This creates a smoother experience when moving around obstacles
+        self.collision_margin_x = 4  # pixels from each side horizontally
+        self.collision_margin_y = 2  # pixels from top and 4 from bottom
+        
         # Map boundaries
         self.map_width = map_width
         self.map_height = map_height
@@ -143,20 +148,26 @@ class Player:
         Check if the player is colliding with any collidable tiles
         Returns True if collision detected, False otherwise
         """
-        # Check each corner of the player's hitbox
+        # Calculate collision box with margins
+        col_x = self.x + self.collision_margin_x
+        col_y = self.y + self.collision_margin_y
+        col_width = self.width - (self.collision_margin_x * 2)
+        col_height = self.height - (self.collision_margin_y * 2)
+        
+        # Check each corner of the player's collision box
         corners = [
-            (self.x, self.y),  # Top-left
-            (self.x + self.width - 1, self.y),  # Top-right
-            (self.x, self.y + self.height - 1),  # Bottom-left
-            (self.x + self.width - 1, self.y + self.height - 1)  # Bottom-right
+            (col_x, col_y),  # Top-left
+            (col_x + col_width - 1, col_y),  # Top-right
+            (col_x, col_y + col_height - 1),  # Bottom-left
+            (col_x + col_width - 1, col_y + col_height - 1)  # Bottom-right
         ]
         
         # Check center points of each edge for better collision detection
         edge_centers = [
-            (self.x + self.width // 2, self.y),  # Top center
-            (self.x + self.width - 1, self.y + self.height // 2),  # Right center
-            (self.x + self.width // 2, self.y + self.height - 1),  # Bottom center
-            (self.x, self.y + self.height // 2)  # Left center
+            (col_x + col_width // 2, col_y),  # Top center
+            (col_x + col_width - 1, col_y + col_height // 2),  # Right center
+            (col_x + col_width // 2, col_y + col_height - 1),  # Bottom center
+            (col_x, col_y + col_height // 2)  # Left center
         ]
         
         # Combine all points to check
@@ -173,7 +184,19 @@ class Player:
         
         return False
         
-    def draw(self, screen, camera_x=0, camera_y=0):
+    def draw(self, screen, camera_x=0, camera_y=0, debug=False):
         # Draw the player sprite at the camera-adjusted position
         self.sprite.draw(screen, self.x - camera_x, self.y - camera_y)
+        
+        # Draw collision box in debug mode
+        if debug:
+            # Calculate collision box with margins
+            col_x = self.x + self.collision_margin_x - camera_x
+            col_y = self.y + self.collision_margin_y - camera_y
+            col_width = self.width - (self.collision_margin_x * 2)
+            col_height = self.height - (self.collision_margin_y * 2)
+            
+            # Draw the collision box as a green rectangle
+            pygame.draw.rect(screen, (0, 255, 0), 
+                            (col_x, col_y, col_width, col_height), 1)
 
