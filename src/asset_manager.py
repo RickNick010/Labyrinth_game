@@ -37,33 +37,19 @@ class AssetManager:
         """
         return os.path.normpath(os.path.join(self.base_path, relative_path))
     
-    def load_image(self, path):
+    def load_image(self, image_path):
         """
-        Load an image from the given path.
+        Load an image from a path
         """
-        if path in self.images:
-            return self.images[path]
-            
-        full_path = self.get_asset_path(path)
-        
-        if not os.path.exists(full_path):
-            print(f"Error: Image not found at {full_path}")
-            # Return a placeholder image (small colored surface)
-            surface = pygame.Surface((16, 16))
-            surface.fill((255, 0, 255))  # Magenta for missing textures
-            self.images[path] = surface
-            return surface
-            
+        full_path = self.get_asset_path(image_path)
         try:
-            image = pygame.image.load(full_path).convert_alpha()
-            self.images[path] = image
-            return image
+            return pygame.image.load(full_path).convert_alpha()
         except pygame.error as e:
             print(f"Error loading image {full_path}: {e}")
-            surface = pygame.Surface((16, 16))
-            surface.fill((255, 0, 255))  # Magenta for missing textures
-            self.images[path] = surface
-            return surface
+            # Return a small colored surface as a placeholder
+            placeholder = pygame.Surface((16, 16), pygame.SRCALPHA)
+            placeholder.fill((255, 0, 255))  # Magenta for missing textures
+            return placeholder
     
     def load_tileset(self, tileset_path):
         """

@@ -1,5 +1,6 @@
 import pygame
 from src.animated_tile import AnimatedTile
+from src.footprint import FootprintManager
 
 class Player:
     def __init__(self, x, y, asset_manager, map_width=0, map_height=0):
@@ -22,6 +23,14 @@ class Player:
         # This creates a smoother experience when moving around obstacles
         self.collision_margin_x = 4  # pixels from each side horizontally
         self.collision_margin_y = 2  # pixels from top and 4 from bottom
+        
+        # Footprint system
+        self.footprint_manager = FootprintManager(
+            asset_manager,
+            step_distance=12,  # Distance between footprints
+            scale_factor=0.03,  # Scale footprints to 40% of original size
+            lifetime=1.5       # Footprints last for 1.5 seconds
+        )
         
         # Map boundaries
         self.map_width = map_width
@@ -137,6 +146,16 @@ class Player:
         # Determine if moving
         self.moving = (prev_x != self.x or prev_y != self.y)
         
+        # Add footprints if moving
+        if self.moving:
+            # Add footprint at the center bottom of the player
+            footprint_x = self.x + self.width // 2
+            footprint_y = self.y + self.height - 2  # Slightly above the bottom
+            self.footprint_manager.add_footprint(footprint_x, footprint_y, self.direction, (dx, dy))
+        
+        # Update footprints
+        self.footprint_manager.update(dt)
+        
         # Update animation state based on movement
         self.update_animation_state()
         
@@ -185,6 +204,9 @@ class Player:
         return False
         
     def draw(self, screen, camera_x=0, camera_y=0, debug=False):
+        # Draw footprints first (so they appear behind the player)
+        self.footprint_manager.draw(screen, camera_x, camera_y)
+        
         # Draw the player sprite at the camera-adjusted position
         self.sprite.draw(screen, self.x - camera_x, self.y - camera_y)
         
