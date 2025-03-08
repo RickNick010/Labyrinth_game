@@ -3,7 +3,7 @@ from src.animated_tile import AnimatedTile
 from src.footprint import FootprintManager
 
 class Player:
-    def __init__(self, x, y, asset_manager, map_width=0, map_height=0):
+    def __init__(self, x, y, asset_manager, config, map_width=0, map_height=0):
         self.x = x
         self.y = y
         # Store float positions for smooth movement calculations
@@ -17,7 +17,9 @@ class Player:
         tileset = asset_manager.load_tileset(self.character_tileset)
         self.width = tileset.get('tilewidth', 16)
         self.height = tileset.get('tileheight', 16)
-        self.speed = 2
+        
+        # Get player speed from config
+        self.speed = config.get("PLAYER_SPEED", 600) / 300  # Convert to pixels per frame
         
         # Collision box modifier - make the collision box smaller than the sprite
         # This creates a smoother experience when moving around obstacles
@@ -28,7 +30,7 @@ class Player:
         self.footprint_manager = FootprintManager(
             asset_manager,
             step_distance=12,  # Distance between footprints
-            scale_factor=0.03,  # Scale footprints to 40% of original size
+            scale_factor=0.03,  # Scale footprints to 3% of original size
             lifetime=1.5       # Footprints last for 1.5 seconds
         )
         

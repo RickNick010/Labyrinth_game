@@ -1,6 +1,8 @@
+import pygame
 from src.game import Game
 
 def main():
+    # Create and run the game
     game = Game()
     game.run()
 

@@ -4,21 +4,30 @@ from src.player import Player
 from src.world import TileMap
 from src.asset_manager import AssetManager
 from src.fps_counter import FPSCounter
+from src.config import Config
 
 class Game:
-    def __init__(self, screen_width=1920, screen_height=1080, scale_factor=6):
+    def __init__(self, scale_factor=6):
         pygame.init()
-        self.screen_width = screen_width
-        self.screen_height = screen_height
-        self.screen = pygame.display.set_mode((screen_width, screen_height))
+        
+        # Load configuration
+        self.config = Config()
+        
+        # Get screen dimensions from config
+        self.screen_width = self.config.get("SCREEN_WIDTH")
+        print(f"Screen width: {self.screen_width}")
+        self.screen_height = self.config.get("SCREEN_HEIGHT")
+        print(f"Screen height: {self.screen_height}")
+        
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("The Labyrinth Game")
         
         # Scale factor for zooming in
         self.scale_factor = scale_factor
         
         # Create a smaller render surface that we'll scale up
-        self.render_width = screen_width // scale_factor
-        self.render_height = screen_height // scale_factor
+        self.render_width = self.screen_width // scale_factor
+        self.render_height = self.screen_height // scale_factor
         self.render_surface = pygame.Surface((self.render_width, self.render_height))
         
         self.clock = pygame.time.Clock()
@@ -34,7 +43,12 @@ class Game:
         self.asset_manager = AssetManager()
         
         # Create player at the center of the render surface
-        self.player = Player(self.render_width // 2, self.render_height // 2, self.asset_manager)
+        self.player = Player(
+            self.render_width // 2, 
+            self.render_height // 2, 
+            self.asset_manager,
+            self.config
+        )
         
         # Camera position
         self.camera_x = 0
