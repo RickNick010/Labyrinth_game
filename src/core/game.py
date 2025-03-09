@@ -1,10 +1,10 @@
 import pygame
 import os
-from src.player import Player
-from src.world import TileMap
-from src.asset_manager import AssetManager
-from src.fps_counter import FPSCounter
-from src.config import Config
+from src.entities.player import Player
+from src.core.world import TileMap
+from src.core.asset_manager import AssetManager
+from src.utils.fps_counter import FPSCounter
+from src.core.config import Config
 
 class Game:
     def __init__(self, scale_factor=6):
@@ -15,9 +15,7 @@ class Game:
         
         # Get screen dimensions from config
         self.screen_width = self.config.get("SCREEN_WIDTH")
-        print(f"Screen width: {self.screen_width}")
         self.screen_height = self.config.get("SCREEN_HEIGHT")
-        print(f"Screen height: {self.screen_height}")
         
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("The Labyrinth Game")
@@ -90,6 +88,7 @@ class Game:
             
         # Draw FPS counter
         self.fps_counter.draw(surface)
+        self.fps_counter.update()
         
         # Draw player position
         font = pygame.font.SysFont('monospace', 16, bold=True)
@@ -101,7 +100,7 @@ class Game:
         cam_text = f"Camera: ({self.camera_x}, {self.camera_y})"
         cam_surface = font.render(cam_text, True, (255, 255, 0))
         surface.blit(cam_surface, (10, 50))
-        
+
         # Draw tile info under cursor
         mouse_x, mouse_y = pygame.mouse.get_pos()
         # Convert screen coordinates to world coordinates
@@ -121,7 +120,7 @@ class Game:
                     if index < len(layer['data']):
                         gid = layer['data'][index]
                         if gid > 0:
-                            collidable = "Yes" if gid in self.map.collidable_tiles else "No"
+                            collidable = "Yes" if gid in self.map.collision_manager.collidable_tiles else "No"
                             tile_info = f"Tile: GID {gid} at ({tile_x}, {tile_y}) Collidable: {collidable}"
         
         tile_surface = font.render(tile_info, True, (255, 255, 0))
@@ -131,9 +130,6 @@ class Game:
         while self.running:
             # Calculate delta time
             dt = self.clock.tick(60) / 1000.0  # Convert to seconds
-            
-            # Update FPS counter
-            self.fps_counter.update()
             
             # Handle events
             for event in pygame.event.get():

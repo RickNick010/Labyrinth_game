@@ -1,6 +1,6 @@
 import pygame
-from src.animated_tile import AnimatedTile
-from src.footprint import FootprintManager
+from src.components.animations import AnimatedTile
+from src.effects.footprint import FootprintManager
 
 class Player:
     def __init__(self, x, y, asset_manager, config, map_width=0, map_height=0):

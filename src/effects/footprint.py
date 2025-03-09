@@ -1,6 +1,6 @@
 import pygame
 import math
-from src.asset_manager import AssetManager
+from src.core.asset_manager import AssetManager
 
 class Footprint:
     """

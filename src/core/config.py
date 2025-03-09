@@ -9,6 +9,8 @@ class Config:
         self.config_path = config_path
         self.config = {}
         self.load_config()
+
+        
         
     def load_config(self):
         """Load configuration from JSON file"""
@@ -28,16 +30,18 @@ class Config:
                 
             with open(path, 'r') as f:
                 self.config = json.load(f)
-                print(f"Loaded configuration from {path}")
+                print(f"Loaded configuration from {path}")      
         except (json.JSONDecodeError, IOError) as e:
-            print(f"Error loading config: {e}")
-            # Set default values
+            """If config file cannot be loaded, create a new one with default values"""  
             self.config = {
-                "SCREEN_WIDTH": 1000,
-                "SCREEN_HEIGHT": 1000,
+                "SCREEN_WIDTH": 1920,
+                "SCREEN_HEIGHT": 1080,
                 "PLAYER_SPEED": 600,
                 "PLAYER_SIZE": 40
             }
+            os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+            with open(self.config_path, 'w') as f:
+                json.dump(self.config, f)
             print("Using default configuration")
     
     def get(self, key, default=None):
