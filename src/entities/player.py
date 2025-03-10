@@ -205,12 +205,20 @@ class Player:
         
         return False
         
-    def draw(self, screen, camera_x=0, camera_y=0, debug=False):
-        # Draw footprints first (so they appear behind the player)
-        self.footprint_manager.draw(screen, camera_x, camera_y)
+    def render_to_surface(self, surface, camera_x=0, camera_y=0, debug=False):
+        """
+        Render player to the provided surface
+        
+        Args:
+            surface: The surface to render to
+            camera_x, camera_y: Camera offset
+            debug: Whether to show debug visualization
+        """
+        # Note: Footprints are now handled by the renderer directly
+        # so we don't need to render them here
         
         # Draw the player sprite at the camera-adjusted position
-        self.sprite.draw(screen, self.x - camera_x, self.y - camera_y)
+        self.sprite.render_to_surface(surface, self.x - camera_x, self.y - camera_y)
         
         # Draw collision box in debug mode
         if debug:
@@ -221,6 +229,7 @@ class Player:
             col_height = self.height - (self.collision_margin_y * 2)
             
             # Draw the collision box as a green rectangle
-            pygame.draw.rect(screen, (0, 255, 0), 
-                            (col_x, col_y, col_width, col_height), 1)
+            pygame.draw.rect(surface, (0, 255, 0), 
+                           (col_x, col_y, col_width, col_height), 1)
+
 

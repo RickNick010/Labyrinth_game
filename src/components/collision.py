@@ -182,17 +182,21 @@ class CollisionManager:
         
         return False
     
-    def render_debug(self, screen, camera_x, camera_y, tile_width, tile_height):
+    def render_debug_to_surface(self, surface, camera_x, camera_y):
         """
-        Render collision debug information
+        Render collision debug information to a surface
+        
+        Args:
+            surface: The surface to render to
+            camera_x, camera_y: Camera position offset
         """
         import pygame
         
         # Calculate the visible area based on the camera position
-        start_x = max(0, camera_x // tile_width)
-        start_y = max(0, camera_y // tile_height)
-        end_x = min(self.map_width, start_x + (screen.get_width() // tile_width) + 2)
-        end_y = min(self.map_height, start_y + (screen.get_height() // tile_height) + 2)
+        start_x = max(0, camera_x // self.tile_width)
+        start_y = max(0, camera_y // self.tile_height)
+        end_x = min(self.map_width, start_x + (surface.get_width() // self.tile_width) + 2)
+        end_y = min(self.map_height, start_y + (surface.get_height() // self.tile_height) + 2)
         
         # Show collision map
         for y in range(start_y, end_y):
@@ -200,19 +204,19 @@ class CollisionManager:
                 if 0 <= y < len(self.collision_map) and 0 <= x < len(self.collision_map[y]):
                     if self.collision_map[y][x]:
                         # Draw a red rectangle for collidable tiles
-                        draw_x = x * tile_width - camera_x
-                        draw_y = y * tile_height - camera_y
-                        pygame.draw.rect(screen, (255, 0, 0, 128), 
-                                        (draw_x, draw_y, tile_width, tile_height), 1)
+                        draw_x = x * self.tile_width - camera_x
+                        draw_y = y * self.tile_height - camera_y
+                        pygame.draw.rect(surface, (255, 0, 0, 128), 
+                                        (draw_x, draw_y, self.tile_width, self.tile_height), 1)
         
         # Show collision objects
         for obj in self.collision_objects:
             # Convert object coordinates to pixel coordinates
-            obj_x = obj['x'] * tile_width - camera_x
-            obj_y = obj['y'] * tile_height - camera_y
-            obj_width = obj['width'] * tile_width
-            obj_height = obj['height'] * tile_height
+            obj_x = obj['x'] * self.tile_width - camera_x
+            obj_y = obj['y'] * self.tile_height - camera_y
+            obj_width = obj['width'] * self.tile_width
+            obj_height = obj['height'] * self.tile_height
             
             # Draw a blue rectangle for collision objects
-            pygame.draw.rect(screen, (0, 0, 255), 
+            pygame.draw.rect(surface, (0, 0, 255), 
                             (obj_x, obj_y, obj_width, obj_height), 2)

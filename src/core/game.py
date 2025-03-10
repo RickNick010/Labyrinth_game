@@ -2,9 +2,10 @@ import pygame
 import os
 from src.entities.player import Player
 from src.core.world import TileMap
-from src.core.asset_manager import AssetManager
+from src.components.asset_manager import AssetManager
 from src.utils.fps_counter import FPSCounter
 from src.core.config import Config
+from src.components.renderer import Renderer
 
 class Game:
     def __init__(self, scale_factor=6):
@@ -56,6 +57,9 @@ class Game:
         self.map = None
         self.load_map("data/assets/maps/test_map.tmj")
         
+        # Create the renderer
+        self.renderer = Renderer(self.screen_width, self.screen_height, scale_factor)
+        
     def load_map(self, map_path):
         if os.path.exists(self.asset_manager.get_asset_path(map_path)):
             self.map = TileMap(map_path)
@@ -79,7 +83,7 @@ class Game:
             self.camera_x = max(0, min(self.camera_x, self.map.map_width * self.map.tile_width - self.render_width))
             self.camera_y = max(0, min(self.camera_y, self.map.map_height * self.map.tile_height - self.render_height))
         
-    def draw_debug_info(self, surface):
+    def render_debug_info(self, surface):
         """
         Draw debug information on the screen
         """
@@ -139,6 +143,8 @@ class Game:
                     if event.key == pygame.K_F1:
                         # Toggle debug mode
                         self.debug_mode = not self.debug_mode
+                        # Синхронизируем режим отладки с рендерером
+                        self.renderer.set_debug_mode(self.debug_mode)
                         print(f"Debug mode: {'ON' if self.debug_mode else 'OFF'}")
                 
             # Get keyboard input
@@ -153,25 +159,32 @@ class Game:
             if self.map:
                 self.map.update(dt)
             
-            # Update camera
+            # Clear the renderer
+            self.renderer.clear()
+            
+            # Set camera position
             self.update_camera()
+            self.renderer.set_camera(self.camera_x, self.camera_y)
             
-            # Clear the render surface
-            self.render_surface.fill((0, 0, 0))
-            
-            # Render the map to the render surface
+            # Add renderable items to queue in correct order
             if self.map:
-                self.map.render(self.render_surface, self.camera_x, self.camera_y, self.debug_mode)
+                # 1. Рендерим карту первой
+                self.renderer.render_map(self.map)
                 
-            # Draw player to the render surface
-            self.player.draw(self.render_surface, self.camera_x, self.camera_y, self.debug_mode)
+            # 2. Рендерим эффекты следов ДО игрока в слой "below"
+            self.renderer.render_effect(self.player.footprint_manager, "below")
+
+            # 3. Рендерим игрока
+            self.renderer.render_entity(self.player, "entities")
             
-            # Scale the render surface up to the screen
-            scaled_surface = pygame.transform.scale(self.render_surface, (self.screen_width, self.screen_height))
-            self.screen.blit(scaled_surface, (0, 0))
+            # Add UI and debug info
+            if self.debug_mode:
+                self.renderer.render_ui_element(
+                    lambda surface, _, __: self.render_debug_info(surface)
+                )
             
-            # Draw debug information directly on the screen (not scaled)
-            self.draw_debug_info(self.screen)
+            # Render everything to the screen
+            self.renderer.render_to_screen(self.screen)
             
             # Update the display
             pygame.display.flip()

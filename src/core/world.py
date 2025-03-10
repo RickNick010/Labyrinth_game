@@ -1,7 +1,7 @@
 import json
 import os
 import pygame
-from src.core.asset_manager import AssetManager
+from src.components.asset_manager import AssetManager
 from src.components.animations import AnimatedTile
 from src.components.collision import CollisionManager
 
@@ -211,7 +211,8 @@ class TileMap:
         for animated_tile in self.animated_tiles.values():
             animated_tile.update(dt)
     
-    def render(self, screen, camera_x=0, camera_y=0, debug=False):
+    def render_to_surface(self, surface, camera_x=0, camera_y=0, debug=False):
+        """Render the tilemap to a surface"""
         # Render each layer
         for layer in self.layers:
             if layer['type'] == 'tilelayer' and layer.get('visible', True):
@@ -220,8 +221,8 @@ class TileMap:
                 # Calculate the visible area based on the camera position
                 start_x = max(0, camera_x // self.tile_width)
                 start_y = max(0, camera_y // self.tile_height)
-                end_x = min(self.map_width, start_x + (screen.get_width() // self.tile_width) + 2)
-                end_y = min(self.map_height, start_y + (screen.get_height() // self.tile_height) + 2)
+                end_x = min(self.map_width, start_x + (surface.get_width() // self.tile_width) + 2)
+                end_y = min(self.map_height, start_y + (surface.get_height() // self.tile_height) + 2)
                 
                 # Render visible tiles
                 for y in range(start_y, end_y):
@@ -243,9 +244,9 @@ class TileMap:
                                 draw_y = y * self.tile_height - camera_y
                                 
                                 # Draw the tile
-                                screen.blit(tile_image, (draw_x, draw_y))
+                                surface.blit(tile_image, (draw_x, draw_y))
         
         # Debug rendering
         if debug:
-            self.collision_manager.render_debug(screen, camera_x, camera_y, self.tile_width, self.tile_height)
+            self.collision_manager.render_debug_to_surface(surface, camera_x, camera_y)
 

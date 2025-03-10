@@ -1,6 +1,6 @@
 import pygame
 import math
-from src.core.asset_manager import AssetManager
+from src.components.asset_manager import AssetManager
 
 class Footprint:
     """
@@ -97,7 +97,7 @@ class Footprint:
         self.lifetime -= dt
         return self.lifetime > 0
     
-    def draw(self, surface, camera_x=0, camera_y=0):
+    def render_to_surface(self, surface, camera_x=0, camera_y=0):
         """Draw the footprint with fading effect"""
         if Footprint.left_footprint_image is None or Footprint.right_footprint_image is None:
             return
@@ -194,7 +194,7 @@ class FootprintManager:
         """Update all footprints and remove expired ones"""
         self.footprints = [fp for fp in self.footprints if fp.update(dt)]
     
-    def draw(self, surface, camera_x=0, camera_y=0):
+    def render_to_surface(self, surface, camera_x=0, camera_y=0):
         """Draw all footprints"""
         for footprint in self.footprints:
-            footprint.draw(surface, camera_x, camera_y) 
+            footprint.render_to_surface(surface, camera_x, camera_y) 

@@ -160,9 +160,7 @@ class AnimatedTile:
         
         return frame_surface
     
-    def draw(self, screen, x, y):
-        """
-        Draw the current frame at the specified position
-        """
+    def render_to_surface(self, surface, x, y):
+        """Render the current frame at the specified position"""
         frame_image = self.get_frame_image()
-        screen.blit(frame_image, (x, y)) 
+        surface.blit(frame_image, (x, y)) 
