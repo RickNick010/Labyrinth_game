@@ -15,9 +15,16 @@ class Renderer:
                                            screen_height // scale_factor))
         self.ui_surface = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
         
+        # Cache for scaled surface
+        self.scaled_surface = pygame.Surface((screen_width, screen_height)) if scale_factor != 1 else None
+        
         # Camera position
         self.camera_x = 0
         self.camera_y = 0
+        
+        # Visible area in tiles (for determining drawing boundaries)
+        self.visible_width = (screen_width // scale_factor) // 16  # Assuming tile size is 16x16
+        self.visible_height = (screen_height // scale_factor) // 16
         
         # Rendering layers (lower values = drawn first)
         self.layers = {
@@ -30,8 +37,14 @@ class Renderer:
             "ui": []             # User interface elements
         }
         
-        # Debug rendering flag
+        # Debug mode flags
         self.debug_mode = False
+        self.show_spatial_grid = False  # New flag for spatial grid display
+        
+        # Store game state references needed for debug info
+        self.player = None
+        self.map = None
+        self.fps_counter = None
         
     def set_camera(self, x, y):
         """Set the camera position"""
@@ -64,9 +77,17 @@ class Renderer:
         # Add map rendering to the appropriate layer
         self.add_to_render_queue("terrain", 
             lambda surface, cam_x, cam_y: tile_map.render_to_surface(
-                surface, cam_x, cam_y, self.debug_mode
+                surface, cam_x, cam_y
             )
         )
+        
+        # Если включен debug-режим, добавить отрисовку коллизий
+        if hasattr(self, 'debug_mode') and self.debug_mode:
+            self.add_to_render_queue("effects",
+                lambda surface, cam_x, cam_y: tile_map.collision_manager.render_debug_to_surface(
+                    surface, cam_x, cam_y
+                )
+            )
         
     def render_entity(self, entity, layer="entities"):
         """Add an entity to the render queue"""
@@ -74,7 +95,7 @@ class Renderer:
         
         self.add_to_render_queue(layer, 
             lambda surface, cam_x, cam_y: entity.render_to_surface(
-                surface, cam_x, cam_y, self.debug_mode
+                surface, cam_x, cam_y
             ),
             z_index
         )
@@ -93,10 +114,18 @@ class Renderer:
         
     def process_queue(self):
         """Process all items in the render queue for each layer"""
+        # Сбросить счетчик отрисованных объектов
+        self.rendered_objects_count = 0
+        
         # Render world elements to main surface
         world_layers = ["background", "terrain", "below", "entities", "above", "effects"]
         
+        # Пропустить пустые слои
         for layer_name in world_layers:
+            # Если слой пустой, пропустить его
+            if not self.layers[layer_name]:
+                continue
+            
             # Sort items in the layer by z_index
             sorted_items = sorted(self.layers[layer_name], key=lambda item: item[0])
             
@@ -109,22 +138,41 @@ class Renderer:
                     # Otherwise assume it's a (surface, rect) tuple
                     surface, rect = drawable
                     
-                    # Adjust position by camera
-                    adjusted_rect = rect.copy()
-                    adjusted_rect.x -= self.camera_x
-                    adjusted_rect.y -= self.camera_y
-                    
-                    self.main_surface.blit(surface, adjusted_rect)
-                    
+                    # Проверка, находится ли объект в видимой области
+                    if self.is_visible(rect):
+                        # Adjust position by camera
+                        adjusted_rect = rect.copy()
+                        adjusted_rect.x -= self.camera_x
+                        adjusted_rect.y -= self.camera_y
+                        
+                        self.main_surface.blit(surface, adjusted_rect)
+                
+                self.rendered_objects_count += 1
+                
         # Render UI elements directly to UI surface (no camera adjustment)
-        sorted_ui = sorted(self.layers["ui"], key=lambda item: item[0])
-        for _, drawable in sorted_ui:
-            if callable(drawable):
-                drawable(self.ui_surface, 0, 0)
-            else:
-                surface, rect = drawable
-                self.ui_surface.blit(surface, rect)
+        if self.layers["ui"]:  # Проверка на пустой слой UI
+            sorted_ui = sorted(self.layers["ui"], key=lambda item: item[0])
+            for _, drawable in sorted_ui:
+                if callable(drawable):
+                    drawable(self.ui_surface, 0, 0)
+                else:
+                    surface, rect = drawable
+                    self.ui_surface.blit(surface, rect)
+                self.rendered_objects_count += 1
         
+    def is_visible(self, rect):
+        """Checks if the rectangle is in the visible area of the camera"""
+        # Expand the visible area slightly to avoid "popping out" objects
+        margin = 32
+        
+        # If the object is outside the visible area, do not render it
+        if (rect.right < self.camera_x - margin or 
+            rect.left > self.camera_x + self.main_surface.get_width() + margin or
+            rect.bottom < self.camera_y - margin or 
+            rect.top > self.camera_y + self.main_surface.get_height() + margin):
+            return False
+        return True
+
     def render_to_screen(self, screen):
         """Render all layers to the screen"""
         # Process the render queue
@@ -132,17 +180,88 @@ class Renderer:
         
         # Scale the main surface if needed
         if self.scale_factor != 1:
-            scaled = pygame.transform.scale(
+            # Use cached surface for scaling
+            if self.scaled_surface is None:
+                self.scaled_surface = pygame.Surface((self.screen_width, self.screen_height))
+            
+            # Use fast scaling method
+            pygame.transform.scale(
                 self.main_surface, 
-                (self.screen_width, self.screen_height)
+                (self.screen_width, self.screen_height),
+                self.scaled_surface
             )
-            screen.blit(scaled, (0, 0))
+            screen.blit(self.scaled_surface, (0, 0))
         else:
             screen.blit(self.main_surface, (0, 0))
             
         # Draw UI on top (already at screen resolution)
-        screen.blit(self.ui_surface, (0, 0)) 
+        screen.blit(self.ui_surface, (0, 0))
 
-    def set_debug_mode(self, debug):
-        """Set the debug rendering mode"""
-        self.debug_mode = debug 
+    def set_debug_mode(self, enabled):
+        """Set debug rendering mode"""
+        self.debug_mode = enabled
+        if self.map:
+            self.map.collision_manager.debug_grid = enabled and self.show_spatial_grid
+
+    def toggle_spatial_grid(self):
+        """Toggle spatial grid display in debug mode"""
+        self.show_spatial_grid = not self.show_spatial_grid
+        if self.map:
+            self.map.collision_manager.debug_grid = self.debug_mode and self.show_spatial_grid
+
+    def set_debug_references(self, player, map_obj, fps_counter):
+        """Set references needed for debug rendering"""
+        self.player = player
+        self.map = map_obj
+        self.fps_counter = fps_counter
+
+    def render_debug_info(self, surface):
+        """Draw debug information on the screen"""
+        if not self.debug_mode or not self.player or not self.map:
+            return
+            
+        # Draw FPS counter
+        if self.fps_counter:
+            self.fps_counter.draw(surface)
+            self.fps_counter.update()
+        
+        # Draw player position
+        font = pygame.font.SysFont('monospace', 16, bold=True)
+        pos_text = f"Player: ({self.player.x}, {self.player.y})"
+        pos_surface = font.render(pos_text, True, (255, 255, 0))
+        surface.blit(pos_surface, (10, 30))
+        
+        # Draw camera position
+        cam_text = f"Camera: ({self.camera_x}, {self.camera_y})"
+        cam_surface = font.render(cam_text, True, (255, 255, 0))
+        surface.blit(cam_surface, (10, 50))
+
+        # Draw tile info under cursor
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        # Convert screen coordinates to world coordinates
+        world_x = (mouse_x // self.scale_factor) + self.camera_x
+        world_y = (mouse_y // self.scale_factor) + self.camera_y
+        # Convert world coordinates to tile coordinates
+        tile_x = world_x // self.map.tile_width
+        tile_y = world_y // self.map.tile_height
+        
+        # Get tile info if within map bounds
+        tile_info = "Tile: None"
+        if 0 <= tile_x < self.map.map_width and 0 <= tile_y < self.map.map_height:
+            # Get the tile GID at this position
+            for layer in self.map.layers:
+                if layer['type'] == 'tilelayer':
+                    index = tile_y * self.map.map_width + tile_x
+                    if index < len(layer['data']):
+                        gid = layer['data'][index]
+                        if gid > 0:
+                            collidable = "Yes" if gid in self.map.collision_manager.collidable_tiles else "No"
+                            tile_info = f"Tile: GID {gid} at ({tile_x}, {tile_y}) Collidable: {collidable}"
+        
+        tile_surface = font.render(tile_info, True, (255, 255, 0))
+        surface.blit(tile_surface, (10, 70))
+
+        # Draw spatial grid status
+        grid_text = f"Spatial Grid: {'ON' if self.show_spatial_grid else 'OFF'} (F2)"
+        grid_surface = font.render(grid_text, True, (255, 255, 0))
+        surface.blit(grid_surface, (10, 90))

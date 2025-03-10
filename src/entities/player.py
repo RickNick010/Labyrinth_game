@@ -1,6 +1,8 @@
 import pygame
 from src.components.animations import AnimatedTile
 from src.effects.footprint import FootprintManager
+from src.core.config import Config
+
 
 class Player:
     def __init__(self, x, y, asset_manager, config, map_width=0, map_height=0):
@@ -9,6 +11,9 @@ class Player:
         # Store float positions for smooth movement calculations
         self.float_x = float(x)
         self.float_y = float(y)
+        
+        # Store config reference
+        self.config = config
         
         # Character tileset path
         self.character_tileset = "data/assets/tilesets/animated/Main_Character/Basic Charakter Spritesheet.tsj"
@@ -21,10 +26,21 @@ class Player:
         # Get player speed from config
         self.speed = config.get("PLAYER_SPEED", 600) / 300  # Convert to pixels per frame
         
+        # Map key strings to pygame constants
+        self.key_mapping = {
+            "K_UP": pygame.K_UP,
+            "K_DOWN": pygame.K_DOWN,
+            "K_LEFT": pygame.K_LEFT,
+            "K_RIGHT": pygame.K_RIGHT,
+            "K_w": pygame.K_w,
+            "K_a": pygame.K_a,
+            "K_s": pygame.K_s,
+            "K_d": pygame.K_d
+        }
+        
         # Collision box modifier - make the collision box smaller than the sprite
-        # This creates a smoother experience when moving around obstacles
         self.collision_margin_x = 4  # pixels from each side horizontally
-        self.collision_margin_y = 2  # pixels from top and 4 from bottom
+        self.collision_margin_y = 4  # pixels from top and 4 from bottom
         
         # Footprint system
         self.footprint_manager = FootprintManager(
@@ -52,6 +68,10 @@ class Player:
         # Set initial direction and state
         self.update_animation_state()
         
+        # Cached collision points for optimization
+        self.collision_points = []
+        self._update_collision_points()
+        
     def set_map_boundaries(self, map_width, map_height):
         """
         Set the map boundaries to constrain player movement
@@ -70,11 +90,21 @@ class Player:
         # Previous position for movement detection
         prev_x, prev_y = self.x, self.y
         
+        # Get key constants from config strings
+        key_left = self.key_mapping.get(self.config.get("PLAYER_MOV_LEFT", "K_LEFT"))
+        key_left_alt = self.key_mapping.get(self.config.get("PLAYER_MOV_LEFT_ALT", "K_a"))
+        key_right = self.key_mapping.get(self.config.get("PLAYER_MOV_RIGHT", "K_RIGHT"))
+        key_right_alt = self.key_mapping.get(self.config.get("PLAYER_MOV_RIGHT_ALT", "K_d"))
+        key_up = self.key_mapping.get(self.config.get("PLAYER_MOV_UP", "K_UP"))
+        key_up_alt = self.key_mapping.get(self.config.get("PLAYER_MOV_UP_ALT", "K_w"))
+        key_down = self.key_mapping.get(self.config.get("PLAYER_MOV_DOWN", "K_DOWN"))
+        key_down_alt = self.key_mapping.get(self.config.get("PLAYER_MOV_DOWN_ALT", "K_s"))
+        
         # Track movement in each direction
-        moving_left = keys[pygame.K_a] or keys[pygame.K_LEFT]
-        moving_right = keys[pygame.K_d] or keys[pygame.K_RIGHT]
-        moving_up = keys[pygame.K_w] or keys[pygame.K_UP]
-        moving_down = keys[pygame.K_s] or keys[pygame.K_DOWN]
+        moving_left = keys[key_left] or keys[key_left_alt]
+        moving_right = keys[key_right] or keys[key_right_alt]
+        moving_up = keys[key_up] or keys[key_up_alt]
+        moving_down = keys[key_down] or keys[key_down_alt]
         
         # Calculate movement vector
         dx, dy = 0, 0
@@ -109,25 +139,45 @@ class Player:
         
         # Check for collisions if a tilemap is provided
         if tilemap:
-            # Try horizontal movement first
-            self.float_x = new_float_x
-            self.x = int(self.float_x)
+            # Use smaller step size for more accurate collision detection
+            step_size = min(self.speed / 2, 1.0)  # Smaller steps for thin barriers
             
-            # Check for collision in horizontal movement
-            if self.check_collision(tilemap):
-                # Revert horizontal movement if collision detected
-                self.float_x = old_float_x
+            # Calculate number of steps needed
+            total_dx = new_float_x - old_float_x
+            total_dy = new_float_y - old_float_y
+            steps = max(1, int(max(abs(total_dx), abs(total_dy)) / step_size))
+            
+            # Move in small increments to prevent clipping
+            for step in range(1, steps + 1):
+                # Calculate intermediate position
+                step_x = old_float_x + (total_dx * step / steps)
+                step_y = old_float_y + (total_dy * step / steps)
+                
+                # Try horizontal movement
+                self.float_x = step_x
                 self.x = int(self.float_x)
-            
-            # Try vertical movement
-            self.float_y = new_float_y
-            self.y = int(self.float_y)
-            
-            # Check for collision in vertical movement
-            if self.check_collision(tilemap):
-                # Revert vertical movement if collision detected
-                self.float_y = old_float_y
+                
+                # Check for collision in horizontal movement
+                if self.check_collision(tilemap):
+                    # Revert horizontal movement if collision detected
+                    self.float_x = old_float_x
+                    self.x = int(self.float_x)
+                    break
+                
+                # Try vertical movement
+                self.float_y = step_y
                 self.y = int(self.float_y)
+                
+                # Check for collision in vertical movement
+                if self.check_collision(tilemap):
+                    # Revert vertical movement if collision detected
+                    self.float_y = old_float_y
+                    self.y = int(self.float_y)
+                    break
+                
+                # Update old position for next step
+                old_float_x = self.float_x
+                old_float_y = self.float_y
         else:
             # No tilemap for collision, just apply movement
             self.float_x = new_float_x
@@ -164,10 +214,9 @@ class Player:
         # Update the sprite animation
         self.sprite.update(dt)
 
-    def check_collision(self, tilemap):
+    def _update_collision_points(self):
         """
-        Check if the player is colliding with any collidable tiles
-        Returns True if collision detected, False otherwise
+        Update the collision points for the player
         """
         # Calculate collision box with margins
         col_x = self.x + self.collision_margin_x
@@ -192,15 +241,37 @@ class Player:
         ]
         
         # Combine all points to check
-        check_points = corners + edge_centers
+        self.collision_points = corners + edge_centers
+
+    def check_collision(self, tilemap):
+        """
+        Optimized collision check - checks only necessary points
+        """
+        # Update collision points
+        self._update_collision_points()
         
-        # Check if any of these points are in a collidable tile
-        for point_x, point_y in check_points:
-            tile_x = point_x // tilemap.tile_width
-            tile_y = point_y // tilemap.tile_height
-            
+        # Broadphase - get player boundaries
+        min_x = min(point[0] for point in self.collision_points)
+        min_y = min(point[1] for point in self.collision_points)
+        max_x = max(point[0] for point in self.collision_points)
+        max_y = max(point[1] for point in self.collision_points)
+        
+        # Check if there is a collision with tiles within boundaries
+        for tile_y in range(min_y // tilemap.tile_height, max_y // tilemap.tile_height + 1):
+            for tile_x in range(min_x // tilemap.tile_width, max_x // tilemap.tile_width + 1):
+                if 0 <= tile_x < tilemap.map_width and 0 <= tile_y < tilemap.map_height:
+                    # If tile is collidable, check more closely
+                    index = tile_y * tilemap.map_width + tile_x
+                    if index < len(tilemap.collision_manager.collision_map) and tilemap.collision_manager.collision_map[index]:
+                        # Narrowphase - check specific points
+                        for point_x, point_y in self.collision_points:
+                            if (tile_x * tilemap.tile_width <= point_x < (tile_x + 1) * tilemap.tile_width and
+                                tile_y * tilemap.tile_height <= point_y < (tile_y + 1) * tilemap.tile_height):
+                                return True
+        
+        # Check collision with objects
+        for point_x, point_y in self.collision_points:
             if tilemap.is_position_collidable(point_x, point_y):
-                print(f"Collision detected at ({point_x}, {point_y}) - Tile ({tile_x}, {tile_y})")
                 return True
         
         return False
