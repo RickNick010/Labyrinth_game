@@ -15,12 +15,10 @@ class Config:
     def load_config(self):
         """Load configuration from JSON file"""
         try:
-            # Find the config file relative to the current directory
             if not os.path.isabs(self.config_path):
                 # Try current directory
                 if os.path.exists(self.config_path):
                     path = self.config_path
-                # Try one directory up (if running from src/)
                 elif os.path.exists(os.path.join("..", self.config_path)):
                     path = os.path.join("..", self.config_path)
                 else:

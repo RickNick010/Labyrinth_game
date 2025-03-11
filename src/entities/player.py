@@ -2,6 +2,7 @@ import pygame
 from src.components.animations import AnimatedTile
 from src.effects.footprint import FootprintManager
 from src.core.config import Config
+from src.components.keymapper import KeyMapper
 
 
 class Player:
@@ -24,19 +25,24 @@ class Player:
         self.height = tileset.get('tileheight', 16)
         
         # Get player speed from config
-        self.speed = config.get("PLAYER_SPEED", 600) / 300  # Convert to pixels per frame
+        self.speed = config.get("PLAYER_SPEED") / 300  # Convert to pixels per frame
         
-        # Map key strings to pygame constants
-        self.key_mapping = {
-            "K_UP": pygame.K_UP,
-            "K_DOWN": pygame.K_DOWN,
-            "K_LEFT": pygame.K_LEFT,
-            "K_RIGHT": pygame.K_RIGHT,
-            "K_w": pygame.K_w,
-            "K_a": pygame.K_a,
-            "K_s": pygame.K_s,
-            "K_d": pygame.K_d
+        key_mapper = KeyMapper(config)
+        control_map = {
+            "up": "PLAYER_MOV_UP",
+            "up_alt": "PLAYER_MOV_UP_ALT",
+            "down": "PLAYER_MOV_DOWN",
+            "down_alt": "PLAYER_MOV_DOWN_ALT",
+            "left": "PLAYER_MOV_LEFT",
+            "left_alt": "PLAYER_MOV_LEFT_ALT",
+            "right": "PLAYER_MOV_RIGHT",
+            "right_alt": "PLAYER_MOV_RIGHT_ALT"
         }
+        
+        self.control_keys = key_mapper.get_control_dict(control_map)
+        
+        for key in self.control_keys:
+            print(key, self.control_keys[key])
         
         # Collision box modifier - make the collision box smaller than the sprite
         self.collision_margin_x = 4  # pixels from each side horizontally
@@ -90,21 +96,11 @@ class Player:
         # Previous position for movement detection
         prev_x, prev_y = self.x, self.y
         
-        # Get key constants from config strings
-        key_left = self.key_mapping.get(self.config.get("PLAYER_MOV_LEFT", "K_LEFT"))
-        key_left_alt = self.key_mapping.get(self.config.get("PLAYER_MOV_LEFT_ALT", "K_a"))
-        key_right = self.key_mapping.get(self.config.get("PLAYER_MOV_RIGHT", "K_RIGHT"))
-        key_right_alt = self.key_mapping.get(self.config.get("PLAYER_MOV_RIGHT_ALT", "K_d"))
-        key_up = self.key_mapping.get(self.config.get("PLAYER_MOV_UP", "K_UP"))
-        key_up_alt = self.key_mapping.get(self.config.get("PLAYER_MOV_UP_ALT", "K_w"))
-        key_down = self.key_mapping.get(self.config.get("PLAYER_MOV_DOWN", "K_DOWN"))
-        key_down_alt = self.key_mapping.get(self.config.get("PLAYER_MOV_DOWN_ALT", "K_s"))
-        
         # Track movement in each direction
-        moving_left = keys[key_left] or keys[key_left_alt]
-        moving_right = keys[key_right] or keys[key_right_alt]
-        moving_up = keys[key_up] or keys[key_up_alt]
-        moving_down = keys[key_down] or keys[key_down_alt]
+        moving_left = keys[self.control_keys["left"]] or keys[self.control_keys["left_alt"]]
+        moving_right = keys[self.control_keys["right"]] or keys[self.control_keys["right_alt"]]
+        moving_up = keys[self.control_keys["up"]] or keys[self.control_keys["up_alt"]]
+        moving_down = keys[self.control_keys["down"]] or keys[self.control_keys["down_alt"]]
         
         # Calculate movement vector
         dx, dy = 0, 0

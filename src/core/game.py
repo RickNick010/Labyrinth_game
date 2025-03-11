@@ -8,7 +8,7 @@ from src.core.config import Config
 from src.components.renderer import Renderer
 
 class Game:
-    def __init__(self, scale_factor=2):
+    def __init__(self, scale_factor=5):
         pygame.init()
         
         # Load configuration
@@ -116,7 +116,7 @@ class Game:
     def run(self):
         while self.running:
             # Calculate delta time
-            dt = self.clock.tick(120) / 1000.0  # GAME FPS
+            dt = self.clock.tick(60) / 1000.0  # GAME FPS
             
             # Handle events
             for event in pygame.event.get():
