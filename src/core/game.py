@@ -63,7 +63,7 @@ class Game:
         # Set up debug references in renderer
         self.renderer.set_debug_references(self.player, self.map, self.fps_counter)
         
-        # Кеширование для оптимизации
+        # Caching for optimization
         self.cached_collision_state = {}
         self.collision_cache_valid = False
         
