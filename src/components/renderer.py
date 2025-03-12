@@ -36,11 +36,7 @@ class Renderer:
             "effects": [],       # Visual effects
             "ui": []             # User interface elements
         }
-        
-        # Debug mode flags
-        self.debug_mode = False
-        self.show_spatial_grid = False  # New flag for spatial grid display
-        
+           
         # Store game state references needed for debug info
         self.player = None
         self.map = None
@@ -74,20 +70,12 @@ class Renderer:
             
     def render_map(self, tile_map):
         """Render the tilemap to the terrain layer"""
-        # Add map rendering to the appropriate layer
         self.add_to_render_queue("terrain", 
             lambda surface, cam_x, cam_y: tile_map.render_to_surface(
                 surface, cam_x, cam_y
             )
         )
         
-        # Если включен debug-режим, добавить отрисовку коллизий
-        if hasattr(self, 'debug_mode') and self.debug_mode:
-            self.add_to_render_queue("effects",
-                lambda surface, cam_x, cam_y: tile_map.collision_manager.render_debug_to_surface(
-                    surface, cam_x, cam_y
-                )
-            )
         
     def render_entity(self, entity, layer="entities"):
         """Add an entity to the render queue"""
@@ -197,29 +185,14 @@ class Renderer:
         # Draw UI on top (already at screen resolution)
         screen.blit(self.ui_surface, (0, 0))
 
-    def set_debug_mode(self, enabled):
-        """Set debug rendering mode"""
-        self.debug_mode = enabled
-        if self.map:
-            self.map.collision_manager.debug_grid = enabled and self.show_spatial_grid
-
-    def toggle_spatial_grid(self):
-        """Toggle spatial grid display in debug mode"""
-        self.show_spatial_grid = not self.show_spatial_grid
-        if self.map:
-            self.map.collision_manager.debug_grid = self.debug_mode and self.show_spatial_grid
-
     def set_debug_references(self, player, map_obj, fps_counter):
         """Set references needed for debug rendering"""
         self.player = player
         self.map = map_obj
         self.fps_counter = fps_counter
 
-    def render_debug_info(self, surface):
-        """Draw debug information on the screen"""
-        if not self.debug_mode or not self.player or not self.map:
-            return
-            
+    def render_debug_info(self, surface, show_spatial_grid):
+        """Draw debug information on the screen"""         
         # Draw FPS counter
         if self.fps_counter:
             self.fps_counter.draw(surface)
@@ -262,6 +235,6 @@ class Renderer:
         surface.blit(tile_surface, (10, 70))
 
         # Draw spatial grid status
-        grid_text = f"Spatial Grid: {'ON' if self.show_spatial_grid else 'OFF'} (F2)"
+        grid_text = f"Spatial Grid: {'ON' if show_spatial_grid else 'OFF'} (F2)"
         grid_surface = font.render(grid_text, True, (255, 255, 0))
         surface.blit(grid_surface, (10, 90))

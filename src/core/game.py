@@ -34,6 +34,7 @@ class Game:
         
         # Debug mode
         self.debug_mode = False
+        self.debug_mode_spatial_grid = False
         
         # FPS counter
         self.fps_counter = FPSCounter()
@@ -126,12 +127,12 @@ class Game:
                     if event.key == pygame.K_F1:
                         # Toggle debug mode
                         self.debug_mode = not self.debug_mode
-                        self.renderer.set_debug_mode(self.debug_mode)
                         print(f"Debug mode: {'ON' if self.debug_mode else 'OFF'}")
                     elif event.key == pygame.K_F2 and self.debug_mode:
                         # Toggle spatial grid display
-                        self.renderer.toggle_spatial_grid()
-                        print(f"Spatial grid: {'ON' if self.renderer.show_spatial_grid else 'OFF'}")
+                        self.debug_mode_spatial_grid = not self.debug_mode_spatial_grid
+                        self.map.collision_manager.debug_grid = self.debug_mode_spatial_grid
+                        print(f"Spatial grid: {'ON' if self.debug_mode_spatial_grid else 'OFF'}")
                     elif event.key == pygame.K_ESCAPE:
                         self.running = False
                 
@@ -171,8 +172,14 @@ class Game:
             # Add UI and debug info
             if self.debug_mode:
                 self.renderer.render_ui_element(
-                    lambda surface, _, __: self.renderer.render_debug_info(surface)
+                    lambda surface, _, __: self.renderer.render_debug_info(surface, self.debug_mode_spatial_grid)
                 )
+                if self.debug_mode and self.debug_mode_spatial_grid:
+                    self.renderer.add_to_render_queue("effects",
+                        lambda surface, cam_x, cam_y: self.map.collision_manager.render_debug_to_surface(
+                            surface, cam_x, cam_y
+                        )
+                    )    
             
             # Render everything to the screen
             self.renderer.render_to_screen(self.screen)
