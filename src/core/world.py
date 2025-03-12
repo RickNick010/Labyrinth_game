@@ -246,7 +246,4 @@ class TileMap:
                                 # Draw the tile
                                 surface.blit(tile_image, (draw_x, draw_y))
         
-        # Debug rendering
-        if debug:
-            self.collision_manager.render_debug_to_surface(surface, camera_x, camera_y)
 

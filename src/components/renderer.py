@@ -26,14 +26,15 @@ class Renderer:
         self.visible_width = (screen_width // scale_factor) // 16  # Assuming tile size is 16x16
         self.visible_height = (screen_height // scale_factor) // 16
         
-        # Rendering layers (lower values = drawn first)
+        # Rendering layers (lower values = drawn on top)
         self.layers = {
             "background": [],    # Background elements (sky, distant objects)
             "terrain": [],       # Map terrain
             "below": [],         # Items below characters
             "entities": [],      # Characters and entities
             "above": [],         # Items above characters
-            "effects": [],       # Visual effects
+            "effects": [],       # Visual effects  
+            "debug":[],          # Debug Info
             "ui": []             # User interface elements
         }
            
@@ -100,17 +101,27 @@ class Renderer:
         """Add a UI element to the UI layer"""
         self.add_to_render_queue("ui", ui_element, z_index)
         
+
+    def render_debug(self, debug_ui):
+        """Add debug UI to the UI layer (not affected by scaling)"""
+        # Change to UI layer so it's rendered at full screen resolution
+        self.add_to_render_queue("ui", 
+            lambda surface, cam_x, cam_y: debug_ui.render_to_surface(
+                surface, self.camera_x, self.camera_y
+            )
+        )
+
     def process_queue(self):
         """Process all items in the render queue for each layer"""
         # Сбросить счетчик отрисованных объектов
         self.rendered_objects_count = 0
         
         # Render world elements to main surface
-        world_layers = ["background", "terrain", "below", "entities", "above", "effects"]
+        world_layers = ["background", "terrain", "below", "entities", "above", "effects", "debug"]
         
-        # Пропустить пустые слои
+        # Skip empty layers
         for layer_name in world_layers:
-            # Если слой пустой, пропустить его
+            # If the layer is empty, skip it
             if not self.layers[layer_name]:
                 continue
             
@@ -126,7 +137,7 @@ class Renderer:
                     # Otherwise assume it's a (surface, rect) tuple
                     surface, rect = drawable
                     
-                    # Проверка, находится ли объект в видимой области
+                    # Check if the object is in the visible area
                     if self.is_visible(rect):
                         # Adjust position by camera
                         adjusted_rect = rect.copy()
@@ -138,7 +149,7 @@ class Renderer:
                 self.rendered_objects_count += 1
                 
         # Render UI elements directly to UI surface (no camera adjustment)
-        if self.layers["ui"]:  # Проверка на пустой слой UI
+        if self.layers["ui"]:  # Check if the UI layer is empty
             sorted_ui = sorted(self.layers["ui"], key=lambda item: item[0])
             for _, drawable in sorted_ui:
                 if callable(drawable):
@@ -184,57 +195,3 @@ class Renderer:
             
         # Draw UI on top (already at screen resolution)
         screen.blit(self.ui_surface, (0, 0))
-
-    def set_debug_references(self, player, map_obj, fps_counter):
-        """Set references needed for debug rendering"""
-        self.player = player
-        self.map = map_obj
-        self.fps_counter = fps_counter
-
-    def render_debug_info(self, surface, show_spatial_grid):
-        """Draw debug information on the screen"""         
-        # Draw FPS counter
-        if self.fps_counter:
-            self.fps_counter.draw(surface)
-            self.fps_counter.update()
-        
-        # Draw player position
-        font = pygame.font.SysFont('monospace', 16, bold=True)
-        pos_text = f"Player: ({self.player.x}, {self.player.y})"
-        pos_surface = font.render(pos_text, True, (255, 255, 0))
-        surface.blit(pos_surface, (10, 30))
-        
-        # Draw camera position
-        cam_text = f"Camera: ({self.camera_x}, {self.camera_y})"
-        cam_surface = font.render(cam_text, True, (255, 255, 0))
-        surface.blit(cam_surface, (10, 50))
-
-        # Draw tile info under cursor
-        mouse_x, mouse_y = pygame.mouse.get_pos()
-        # Convert screen coordinates to world coordinates
-        world_x = (mouse_x // self.scale_factor) + self.camera_x
-        world_y = (mouse_y // self.scale_factor) + self.camera_y
-        # Convert world coordinates to tile coordinates
-        tile_x = world_x // self.map.tile_width
-        tile_y = world_y // self.map.tile_height
-        
-        # Get tile info if within map bounds
-        tile_info = "Tile: None"
-        if 0 <= tile_x < self.map.map_width and 0 <= tile_y < self.map.map_height:
-            # Get the tile GID at this position
-            for layer in self.map.layers:
-                if layer['type'] == 'tilelayer':
-                    index = tile_y * self.map.map_width + tile_x
-                    if index < len(layer['data']):
-                        gid = layer['data'][index]
-                        if gid > 0:
-                            collidable = "Yes" if gid in self.map.collision_manager.collidable_tiles else "No"
-                            tile_info = f"Tile: GID {gid} at ({tile_x}, {tile_y}) Collidable: {collidable}"
-        
-        tile_surface = font.render(tile_info, True, (255, 255, 0))
-        surface.blit(tile_surface, (10, 70))
-
-        # Draw spatial grid status
-        grid_text = f"Spatial Grid: {'ON' if show_spatial_grid else 'OFF'} (F2)"
-        grid_surface = font.render(grid_text, True, (255, 255, 0))
-        surface.blit(grid_surface, (10, 90))

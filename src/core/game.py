@@ -3,17 +3,17 @@ import os
 from src.entities.player import Player
 from src.core.world import TileMap
 from src.components.asset_manager import AssetManager
-from src.utils.fps_counter import FPSCounter
+from src.ui.debug import DebugUI
 from src.core.config import Config
 from src.components.renderer import Renderer
 
 class Game:
-    def __init__(self, scale_factor=5):
+    def __init__(self, scale_factor=2):
         pygame.init()
         
         # Load configuration
         self.config = Config()
-        
+        self.ticks = 0
         # Get screen dimensions from config
         self.screen_width = self.config.get("SCREEN_WIDTH")
         self.screen_height = self.config.get("SCREEN_HEIGHT")
@@ -32,12 +32,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         
-        # Debug mode
-        self.debug_mode = False
-        self.debug_mode_spatial_grid = False
-        
-        # FPS counter
-        self.fps_counter = FPSCounter()
+ 
         
         # Create asset manager
         self.asset_manager = AssetManager()
@@ -56,13 +51,13 @@ class Game:
         
         # Load the map
         self.map = None
-        self.load_map("data/assets/maps/test_map.tmj")
+        self.load_map("data/assets/maps/collision_test_map.tmj")
         
         # Create the renderer
         self.renderer = Renderer(self.screen_width, self.screen_height, scale_factor)
-        
-        # Set up debug references in renderer
-        self.renderer.set_debug_references(self.player, self.map, self.fps_counter)
+
+        # Debug mode
+        self.debug_ui = DebugUI(self.player, self.map, self.renderer)
         
         # Caching for optimization
         self.cached_collision_state = {}
@@ -118,7 +113,7 @@ class Game:
         while self.running:
             # Calculate delta time
             dt = self.clock.tick(60) / 1000.0  # GAME FPS
-            
+            self.ticks += 1
             # Handle events
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -126,13 +121,17 @@ class Game:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_F1:
                         # Toggle debug mode
-                        self.debug_mode = not self.debug_mode
-                        print(f"Debug mode: {'ON' if self.debug_mode else 'OFF'}")
-                    elif event.key == pygame.K_F2 and self.debug_mode:
+                        self.debug_ui.toggle_active()
+                        print(f"Debug mode: {'ON' if self.debug_ui.is_active else 'OFF'}")
+                        self.debug_ui.toggle_fps()
+                        print(f"FPS display: {'ON' if self.debug_ui.show_fps else 'OFF'}")
+                    elif event.key == pygame.K_F2 and self.debug_ui.is_active:
+                        self.debug_ui.toggle_collision()
+                        print(f"Collision: {'ON' if self.debug_ui.show_collision else 'OFF'}")
+                    elif event.key == pygame.K_F3 and self.debug_ui.is_active:
                         # Toggle spatial grid display
-                        self.debug_mode_spatial_grid = not self.debug_mode_spatial_grid
-                        self.map.collision_manager.debug_grid = self.debug_mode_spatial_grid
-                        print(f"Spatial grid: {'ON' if self.debug_mode_spatial_grid else 'OFF'}")
+                        self.debug_ui.toggle_spatial_grid()
+                        print(f"Spatial grid: {'ON' if self.debug_ui.show_spatial_grid else 'OFF'}")
                     elif event.key == pygame.K_ESCAPE:
                         self.running = False
                 
@@ -142,8 +141,9 @@ class Game:
                 self.running = False
                 
             # Update collision cache every 5 frames
-            if not self.collision_cache_valid or self.fps_counter.frame_count % 5 == 0:
+            if not self.collision_cache_valid or self.ticks % 5 == 0:
                 self.update_collision_cache()
+                self.ticks = 0
             
             # Update player with tilemap for collision detection
             self.player.update(keys, dt, self.map)
@@ -169,17 +169,17 @@ class Game:
             self.renderer.render_effect(self.player.footprint_manager, "below")
             self.renderer.render_entity(self.player, "entities")
             
-            # Add UI and debug info
-            if self.debug_mode:
-                self.renderer.render_ui_element(
-                    lambda surface, _, __: self.renderer.render_debug_info(surface, self.debug_mode_spatial_grid)
-                )
-                if self.debug_mode and self.debug_mode_spatial_grid:
-                    self.renderer.add_to_render_queue("effects",
+            # Add debug UI if active
+            if self.debug_ui.is_active:
+                # Render debug UI
+                self.renderer.render_debug(self.debug_ui)
+                
+                # Add collision overlay if enabled
+                if self.debug_ui.show_collision:
+                    self.renderer.add_to_render_queue("debug",
                         lambda surface, cam_x, cam_y: self.map.collision_manager.render_debug_to_surface(
-                            surface, cam_x, cam_y
-                        )
-                    )    
+                            surface, cam_x, cam_y, self.debug_ui.show_spatial_grid)
+                    )
             
             # Render everything to the screen
             self.renderer.render_to_screen(self.screen)

@@ -287,13 +287,14 @@ class CollisionManager:
         
         return False
     
-    def render_debug_to_surface(self, surface, camera_x, camera_y):
+    def render_debug_to_surface(self, surface, camera_x, camera_y, show_spatial_grid=False):
         """
         Render collision debug information to a surface
         
         Args:
             surface: The surface to render to
             camera_x, camera_y: Camera position offset
+            show_spatial_grid: Whether to show the spatial grid
         """
         import pygame
         
@@ -312,7 +313,7 @@ class CollisionManager:
                         # Draw a red rectangle for collidable tiles
                         draw_x = x * self.tile_width - camera_x
                         draw_y = y * self.tile_height - camera_y
-                        pygame.draw.rect(surface, (255, 0, 0, 128), 
+                        pygame.draw.rect(surface, (255, 0, 0), 
                                         (draw_x, draw_y, self.tile_width, self.tile_height), 1)
         
         # Show collision objects
@@ -346,7 +347,7 @@ class CollisionManager:
                                       (obj_x, obj_y, obj_width, obj_height), 2)
         
         # Show spatial grid if enabled
-        if self.debug_grid:
+        if show_spatial_grid:
             # Calculate visible grid area
             start_grid_x = max(0, int(camera_x // self.grid_cell_size))
             start_grid_y = max(0, int(camera_y // self.grid_cell_size))

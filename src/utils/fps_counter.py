@@ -5,12 +5,13 @@ class FPSCounter:
     """
     A simple FPS counter that calculates and displays the current frames per second.
     """
-    def __init__(self, update_interval=0.5):
+    def __init__(self, update_interval=0.5, scale_factor=1):
         """
         Initialize the FPS counter.
         
         Args:
             update_interval: How often to update the FPS value (in seconds)
+            scale_factor: Scaling factor for the font size
         """
         self.frame_count = 0
         self.fps = 0
@@ -18,14 +19,19 @@ class FPSCounter:
         self.update_interval = update_interval
         self.font = None
         self.initialized = False
+        self.scale_factor = scale_factor
         
-    def initialize(self):
+    def initialize(self, scale_factor=None):
         """
         Initialize the font for rendering.
         Called separately to avoid initializing pygame font before pygame is initialized.
         """
+        if scale_factor is not None:
+            self.scale_factor = scale_factor
+            
         if not self.initialized:
-            self.font = pygame.font.SysFont('monospace', 16, bold=True)
+            font_size = int(16 * self.scale_factor)
+            self.font = pygame.font.SysFont('monospace', font_size, bold=True)
             self.initialized = True
     
     def update(self):
@@ -44,7 +50,7 @@ class FPSCounter:
             self.frame_count = 0
             self.last_update_time = current_time
     
-    def draw(self, surface, x=10, y=10, color=(255, 255, 0)):
+    def render_to_surface(self, surface, x=10, y=10, color=(255, 255, 0)):
         """
         Draw the current FPS on the given surface.
         
