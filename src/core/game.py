@@ -3,7 +3,7 @@ import os
 from src.entities.player import Player
 from src.core.world import TileMap
 from src.components.asset_manager import AssetManager
-from src.ui.debug import DebugUI
+from src.utils.debug import DebugUI
 from src.core.config import Config
 from src.components.renderer import Renderer
 

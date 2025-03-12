@@ -30,7 +30,7 @@ class FPSCounter:
             self.scale_factor = scale_factor
             
         if not self.initialized:
-            font_size = int(16 * self.scale_factor)
+            font_size = int(16)
             self.font = pygame.font.SysFont('monospace', font_size, bold=True)
             self.initialized = True
     

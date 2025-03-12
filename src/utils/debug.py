@@ -33,10 +33,10 @@ class DebugUI:
     def render_to_surface(self, surface, camera_x, camera_y):
         """Draw debug information on the screen"""         
         
-        # Use a larger font size for UI layer (since it's not being scaled)
-        font_size = 16 * self.renderer.scale_factor
+        # Use standard font size for UI layer (since it's already at screen resolution)
+        font_size = 16
         font = pygame.font.SysFont('monospace', int(font_size), bold=True)
-        y_offset = 30 * self.renderer.scale_factor  # Starting y position for text
+        y_offset = 30  # Starting y position for text
         
         if self.show_fps:
             # Initialize FPS counter with current scale factor
